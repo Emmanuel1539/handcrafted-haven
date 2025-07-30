@@ -1,20 +1,43 @@
-// users/route.ts
 import { connectDB } from "@/utils/connectDB";
 import { User } from "@/models/user";
+import { userSchema } from "@/validation/user.schema";
 import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
+import { NextRequest } from "next/server";
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   await connectDB();
-  const users = await User.find().select("-password"); // Exclude password
+
+  const role = req.nextUrl.searchParams.get("role");
+
+  const filter: any = {};
+  if (role) {
+    filter.role = role;
+  }
+
+  const users = await User.find(filter).select("-password"); // Exclude password
   return NextResponse.json(users);
 }
 
 export async function POST(req: Request) {
   await connectDB();
-  const { name, email, password } = await req.json();
+  const body = await req.json();
 
-  // Check if user exists
+  // Validate input using Zod
+  const parsed = userSchema.safeParse(body);
+  if (!parsed.success) {
+    return NextResponse.json(
+      {
+        message: "Invalid user data",
+        errors: parsed.error.flatten().fieldErrors,
+      },
+      { status: 400 }
+    );
+  }
+
+  const { name, email, password, role } = parsed.data;
+
+  // Check if user already exists
   const existingUser = await User.findOne({ email });
   if (existingUser) {
     return NextResponse.json(
@@ -31,6 +54,7 @@ export async function POST(req: Request) {
     name,
     email,
     password: hashedPassword,
+    role,
   });
 
   // Exclude password in response

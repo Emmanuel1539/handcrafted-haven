@@ -1,9 +1,7 @@
 import { connectDB } from "@/utils/connectDB";
 import { Product } from "@/models/product";
+import { productSchema } from "@/validation/product.schema";
 import { NextRequest, NextResponse } from "next/server";
-
-/* Helper function to extract params safely. We wait for the params to resolve before destructuring otherwise 
-nextjs keeps giving a warning of us not awaiting the params before using it(code will still work with the warning though)*/
 
 async function getParams(params: Promise<{ id: string }>) {
   return params;
@@ -39,10 +37,21 @@ export async function PUT(
   try {
     await connectDB();
     const data = await req.json();
-    const updated = await Product.findByIdAndUpdate(id, data, { new: true });
+
+    // We are Validating with existing Zod schema
+    const parsed = productSchema.partial().safeParse(data);
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: "Validation failed", issues: parsed.error.flatten() },
+        { status: 400 }
+      );
+    }
+
+    const updated = await Product.findByIdAndUpdate(id, parsed.data, { new: true });
     if (!updated) {
       return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
+
     return NextResponse.json(updated);
   } catch {
     return NextResponse.json({ error: "Failed to update" }, { status: 500 });

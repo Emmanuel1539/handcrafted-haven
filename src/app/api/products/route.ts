@@ -1,6 +1,7 @@
 import { connectDB } from "@/utils/connectDB";
 import { Product } from "@/models/product";
 import { NextResponse } from "next/server";
+import { productSchema } from "@/validation/product.schema";
 
 // GET /api/products
 export async function GET() {
@@ -20,17 +21,17 @@ export async function GET() {
 export async function POST(req: Request) {
   try {
     await connectDB();
-    const data = await req.json();
+    const body = await req.json();
 
-    // Basic validation
-    if (!data.name || !data.price) {
+    const parsed = productSchema.safeParse(body);
+    if (!parsed.success) {
       return NextResponse.json(
-        { message: "Name and price are required" },
+        { message: "Validation failed", errors: parsed.error.flatten().fieldErrors },
         { status: 400 }
       );
     }
 
-    const newProduct = await Product.create(data);
+    const newProduct = await Product.create(parsed.data);
     return NextResponse.json(newProduct, { status: 201 });
   } catch (error) {
     return NextResponse.json(

@@ -1,47 +1,33 @@
 import { connectDB } from "@/utils/connectDB";
 import { Order } from "@/models/order";
 import "@/models/user";
-import "@/models/product"
+import "@/models/product";
 import { NextResponse } from "next/server";
-import { isValidObjectId } from "mongoose";
-
-
+import { orderSchema } from "@/validation/order.schema";
 
 export async function POST(req: Request) {
   try {
     await connectDB();
-    const data = await req.json();
+    const body = await req.json();
 
-    // Validate required fields (e.g., userId, products)
-    if (!data.userId || !Array.isArray(data.products) || data.products.length === 0) {
-      return NextResponse.json(
-        { message: "userId and products are required" },
-        { status: 400 }
-      );
-    }
+    // Validate with zod schema
+    const validatedData = orderSchema.parse(body);
 
-    // Validate userId
-    if (!isValidObjectId(data.userId)) {
-      return NextResponse.json({ message: "Invalid user ID" }, { status: 400 });
-    }
-
-    // Validate product IDs
-    for (const item of data.products) {
-      if (!isValidObjectId(item.productId)) {
-        return NextResponse.json(
-          { message: `Invalid product ID: ${item.productId}` },
-          { status: 400 }
-        );
-      }
-    }
-
-    const order = await Order.create(data);
+    const order = await Order.create(validatedData);
     const populatedOrder = await Order.findById(order._id)
       .populate("userId")
       .populate("products.productId");
 
     return NextResponse.json(populatedOrder, { status: 201 });
-  } catch (error) {
+  } catch (error: any) {
+    if (error.name === "ZodError") {
+      return NextResponse.json(
+        { message: "Validation failed", issues: error.errors },
+        { status: 400 }
+      );
+    }
+
+    console.error("Order creation error:", error);
     return NextResponse.json(
       { message: "Failed to create order" },
       { status: 500 }
@@ -50,11 +36,19 @@ export async function POST(req: Request) {
 }
 
 export async function GET() {
-  await connectDB();
+  try {
+    await connectDB();
 
-  const orders = await Order.find()
-    .populate("userId")
-    .populate("products.productId");
+    const orders = await Order.find()
+      .populate("userId")
+      .populate("products.productId");
 
-  return NextResponse.json(orders);
+    return NextResponse.json(orders);
+  } catch (error) {
+    console.error("Failed to fetch orders:", error);
+    return NextResponse.json(
+      { message: "Failed to fetch orders" },
+      { status: 500 }
+    );
+  }
 }

@@ -1,12 +1,12 @@
 import { connectDB } from "@/utils/connectDB";
 import { Order } from "@/models/order";
 import { NextResponse } from "next/server";
-import { isValidObjectId } from "mongoose";
+import { objectIdSchema } from "@/validation/order.schema";
 
 // Helper function to extract params safely
 async function getParams(params: Promise<{ userID: string }>) {
   const resolvedParams = await params;
-  console.log("Resolved params:", resolvedParams);
+  console.log("Resolved params:", resolvedParams); // Log for debugging
   return resolvedParams;
 }
 
@@ -30,10 +30,12 @@ export async function GET(
       );
     }
 
-    if (!isValidObjectId(userID)) {
-      console.log("Invalid userID format:", userID);
+    // Validate using zod schema
+    const parseResult = objectIdSchema.safeParse(userID);
+    if (!parseResult.success) {
+      console.log("Invalid userID format:", userID, parseResult.error);
       return NextResponse.json(
-        { message: "Invalid user ID", received: userID },
+        { message: "Invalid user ID", issues: parseResult.error },
         { status: 400 }
       );
     }
@@ -52,10 +54,10 @@ export async function GET(
     }
 
     return NextResponse.json(orders);
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error fetching orders:", error);
     return NextResponse.json(
-      { message: "Failed to fetch orders", error },
+      { message: "Failed to fetch orders", error: error.message },
       { status: 500 }
     );
   }

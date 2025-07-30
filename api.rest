@@ -5,9 +5,10 @@ POST {{host}}/api/users
 Content-Type: application/json
 
 {
-  "name": "Malcolm Reynolds",
-  "email": "malc@example.com",
-  "password": "securepasswo1d"
+  "name": "Malcolm Nigel",
+  "email": "nkomo@example.com",
+  "password": "secuw3passwo1d",
+  "role": "seller"
 }
 
 ### Get All Users
